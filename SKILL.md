@@ -1,9 +1,9 @@
 ---
 name: mailwise
 description: Search and analyze email issue threads from a local knowledge base. Use when the user asks about past bugs, incidents, or wants to find how experienced engineers solved similar issues. Triggers on questions like "have we seen this before", "similar issues", "how did we fix", "root cause analysis", "past incidents".
-homepage: https://github.com/peterxcli/MailWise
+homepage: https://github.com/PetrGuan/MailWise
 user-invocable: true
-metadata: { "openclaw": { "emoji": "📧", "requires": { "bins": ["mailwise", "claude"] }, "install": [{ "id": "pip", "kind": "uv", "package": "mailwise", "bins": ["mailwise"], "label": "Install MailWise via uv/pip" }] } }
+metadata: { "openclaw": { "emoji": "📧", "requires": { "bins": ["mailwise", "claude"] }, "install": [{ "id": "pip", "kind": "uv", "package": "mailwise @ git+https://github.com/PetrGuan/MailWise.git", "bins": ["mailwise"], "label": "Install MailWise from GitHub" }] } }
 ---
 
 # MailWise — Email Issue Knowledge Base
@@ -106,10 +106,18 @@ Expert engineers' replies get `[Expert]` tags and boosted scores in search resul
 
 Before first use, the user needs to:
 
-1. Create a config file: `cp config.example.yaml config.yaml` in the MailWise directory
-2. Set `eml_directory` to the folder containing `.eml` files
-3. Add expert engineers to the `experts` list
-4. Run `mailwise index` to build the initial index
+1. Install MailWise:
+   ```bash
+   pip install git+https://github.com/PetrGuan/MailWise.git
+   ```
+2. Clone the repo for config files:
+   ```bash
+   git clone https://github.com/PetrGuan/MailWise.git && cd MailWise
+   cp config.example.yaml config.yaml
+   ```
+3. Edit `config.yaml`: set `eml_directory` and add expert engineers
+4. Put `.eml` files in the configured directory
+5. Run `mailwise index` to build the initial index
 
 ## Important notes
 

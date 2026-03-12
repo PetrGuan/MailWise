@@ -26,7 +26,7 @@ If your team handles bugs/incidents via email, years of tribal knowledge is buri
 ### Install
 
 ```bash
-git clone https://github.com/peterxcli/MailWise.git
+git clone https://github.com/PetrGuan/MailWise.git
 cd MailWise
 pip install -e .
 ```
