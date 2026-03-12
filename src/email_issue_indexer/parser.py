@@ -26,6 +26,8 @@ class ThreadMessage:
 class ParsedEmail:
     file_path: str
     file_hash: str
+    file_mtime: float
+    file_size: int
     subject: str
     date: str
     from_name: str
@@ -36,11 +38,17 @@ class ParsedEmail:
     messages: list[ThreadMessage] = field(default_factory=list)
 
 
+def file_stat(path: Path) -> tuple[float, int]:
+    """Return (mtime, size) for fast change detection."""
+    st = path.stat()
+    return (st.st_mtime, st.st_size)
+
+
 def hash_file(path: Path) -> str:
     """SHA256 hash of file contents."""
     h = hashlib.sha256()
     with open(path, "rb") as f:
-        for chunk in iter(lambda: f.read(8192), b""):
+        for chunk in iter(lambda: f.read(65536), b""):
             h.update(chunk)
     return h.hexdigest()
 
@@ -54,7 +62,6 @@ def _extract_addr(addr_str: str | None) -> tuple[str, str]:
     match = re.search(r'(.+?)\s*<([^>]+)>', addr_str)
     if match:
         return (match.group(1).strip().strip('"'), match.group(2).strip())
-    # Bare email
     return ("", addr_str.strip())
 
 
@@ -66,8 +73,6 @@ def _extract_addr_list(addr_str: str | None) -> list[str]:
 
 
 # Pattern to split Outlook-style inline thread replies.
-# Matches a separator line of underscores followed by From:/Sent: block,
-# or just From: followed by Sent: (some clients omit the underscores).
 THREAD_HEADER = re.compile(
     r'(?:^[_\-]{5,}\s*$\n)?'       # Optional separator line
     r'^From:\s+(.+?)$\n'            # From line
@@ -82,12 +87,9 @@ THREAD_HEADER = re.compile(
 def _split_thread(text: str) -> list[ThreadMessage]:
     """Split an email body into individual thread messages."""
     messages = []
-
-    # Find all thread headers
     splits = list(THREAD_HEADER.finditer(text))
 
     if not splits:
-        # Single message, no thread
         body = text.strip()
         if body:
             messages.append(ThreadMessage(
@@ -96,7 +98,6 @@ def _split_thread(text: str) -> list[ThreadMessage]:
             ))
         return messages
 
-    # Text before first split is the top-level reply
     top_body = text[:splits[0].start()].strip()
     if top_body:
         messages.append(ThreadMessage(
@@ -114,13 +115,9 @@ def _split_thread(text: str) -> list[ThreadMessage]:
         if not from_addr and from_raw:
             from_name = from_raw.strip()
 
-        # Body is from end of this header to start of next header (or end of text)
         body_start = match.end()
         body_end = splits[i + 1].start() if i + 1 < len(splits) else len(text)
-
-        # Remove leading separator lines from body
         body = text[body_start:body_end].strip()
-        # Remove trailing separator lines
         body = re.sub(r'\n[_\-]{5,}\s*$', '', body).strip()
 
         messages.append(ThreadMessage(
@@ -138,6 +135,7 @@ def _split_thread(text: str) -> list[ThreadMessage]:
 
 def parse_eml(path: Path) -> ParsedEmail:
     """Parse an EML file into structured data with thread messages."""
+    mtime, size = file_stat(path)
     file_hash = hash_file(path)
 
     with open(path, "rb") as f:
@@ -170,21 +168,19 @@ def parse_eml(path: Path) -> ParsedEmail:
             if payload:
                 body_text = payload.decode("utf-8", errors="replace")
 
-    # Clean safelinks and mailto artifacts
     body_text = clean_text(body_text)
-
-    # Split into thread messages
     thread_messages = _split_thread(body_text)
 
-    # Fill in top-level message metadata from email headers
     if thread_messages and not thread_messages[0].from_addr:
         thread_messages[0].from_name = from_name
         thread_messages[0].from_addr = from_addr
         thread_messages[0].sent_date = str(date)
 
-    parsed = ParsedEmail(
+    return ParsedEmail(
         file_path=str(path),
         file_hash=file_hash,
+        file_mtime=mtime,
+        file_size=size,
         subject=subject,
         date=str(date),
         from_name=from_name,
@@ -194,5 +190,3 @@ def parse_eml(path: Path) -> ParsedEmail:
         in_reply_to=in_reply_to,
         messages=thread_messages,
     )
-
-    return parsed

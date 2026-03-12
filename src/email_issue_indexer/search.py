@@ -1,4 +1,9 @@
-"""Search for similar issues using embeddings."""
+"""Search for similar issues using embeddings.
+
+Optimized: loads embedding vectors as a contiguous numpy array directly
+from SQLite, avoiding the overhead of constructing 100K+ Python objects.
+Only fetches full metadata for the top-k results.
+"""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -26,51 +31,52 @@ def find_similar(
 ) -> list[SearchResult]:
     """Find thread messages most similar to the query.
 
-    Args:
-        query: Natural language description of the issue.
-        store: Database store.
-        engine: Embedding engine.
-        top_k: Number of results to return.
-        expert_boost: Multiplier for expert message scores.
-        expert_only: If True, only return messages from experts.
+    Optimized path:
+    1. Load only (id, email_id, is_expert, embedding_blob) — no text/metadata
+    2. Build numpy matrix directly from blobs
+    3. Single matrix multiply for cosine similarity
+    4. Only fetch full metadata for the top-k winners
     """
-    # Load all messages with embeddings
-    messages = store.get_all_messages_with_embeddings()
-    if not messages:
+    corpus, expert_mask, msg_ids, email_ids, is_expert_list = store.get_search_vectors()
+
+    if len(corpus) == 0:
         return []
 
     if expert_only:
-        messages = [m for m in messages if m.is_expert]
-        if not messages:
+        mask = expert_mask
+        corpus = corpus[mask]
+        msg_ids = [m for m, e in zip(msg_ids, is_expert_list) if e]
+        email_ids = [e for e, ex in zip(email_ids, is_expert_list) if ex]
+        expert_mask = np.ones(len(corpus), dtype=bool)
+        if len(corpus) == 0:
             return []
-
-    # Build corpus matrix
-    corpus_vecs = np.stack([m.embedding for m in messages])
-    expert_mask = np.array([m.is_expert for m in messages])
 
     # Embed query
     query_vec = engine.embed(query)
 
     # Search
     results = EmbeddingEngine.search(
-        query_vec, corpus_vecs, expert_mask, expert_boost, top_k
+        query_vec, corpus, expert_mask, expert_boost, top_k * 3  # over-fetch for dedup
     )
 
-    # Build results with email context
+    # Deduplicate by email_id, then fetch metadata only for winners
     search_results = []
     seen_emails = set()
     for idx, score in results:
-        msg = messages[idx]
-        # Deduplicate by email - show each issue thread once
-        if msg.email_id in seen_emails:
+        eid = email_ids[idx]
+        if eid in seen_emails:
             continue
-        seen_emails.add(msg.email_id)
+        seen_emails.add(eid)
 
-        email_record = store.get_email(msg.email_id)
-        if email_record:
+        msg = store.get_message_metadata(msg_ids[idx])
+        email_record = store.get_email(eid)
+        if msg and email_record:
             search_results.append(SearchResult(
                 message=msg, email=email_record, score=score
             ))
+
+        if len(search_results) >= top_k:
+            break
 
     return search_results
 
@@ -89,7 +95,6 @@ def format_results(results: list[SearchResult], show_body: bool = False) -> str:
         lines.append(f"   Email ID: {r.email.id}")
 
         if show_body:
-            # Show first 300 chars of the matching message
             preview = r.message.body_text[:300].replace("\n", "\n   ")
             lines.append(f"   Preview: {preview}")
 

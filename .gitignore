@@ -1,6 +1,7 @@
 # User data - NEVER commit
 data/
 markdown/
+emails/
 *.eml
 
 # User config (contains employee emails, internal paths)
