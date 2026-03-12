@@ -1,0 +1,58 @@
+#!/bin/bash
+# Pre-commit hook: block commits that contain potential PII or company data.
+# This protects against accidentally leaking internal information in an open source repo.
+#
+# Install: ./scripts/install-hooks.sh
+
+RED='\033[0;31m'
+NC='\033[0m'
+
+STAGED=$(git diff --cached --diff-filter=ACMR --name-only)
+
+if [ -z "$STAGED" ]; then
+    exit 0
+fi
+
+ERRORS=0
+
+# 1. Block config.yaml from being committed
+if echo "$STAGED" | grep -qx "config.yaml\|config.local.yaml"; then
+    echo -e "${RED}BLOCKED:${NC} config.yaml or config.local.yaml is staged."
+    echo "  This file contains real email addresses and local paths."
+    echo "  Remove it: git reset HEAD config.yaml"
+    ERRORS=$((ERRORS + 1))
+fi
+
+# 2. Block .eml files
+if echo "$STAGED" | grep -q "\.eml$"; then
+    echo -e "${RED}BLOCKED:${NC} .eml files are staged."
+    echo "  Email files contain private data and must not be committed."
+    ERRORS=$((ERRORS + 1))
+fi
+
+# 3. Block data/ and markdown/ directories
+if echo "$STAGED" | grep -q "^data/\|^markdown/"; then
+    echo -e "${RED}BLOCKED:${NC} Files in data/ or markdown/ are staged."
+    echo "  These contain indexed email content and must not be committed."
+    ERRORS=$((ERRORS + 1))
+fi
+
+# 4. Scan staged diffs for real company email patterns
+COMPANY_PATTERNS='@microsoft\.com|@company\.internal|\.corp\.microsoft\.com'
+HITS=$(git diff --cached -U0 -- $STAGED | grep -E "^\+" | grep -Ei "$COMPANY_PATTERNS" | grep -v "^+++\|example\|placeholder\|company\.com" || true)
+
+if [ -n "$HITS" ]; then
+    echo -e "${RED}BLOCKED:${NC} Staged changes may contain real company email addresses:"
+    echo "$HITS" | head -5
+    echo "  Use @example.com for examples instead."
+    ERRORS=$((ERRORS + 1))
+fi
+
+if [ $ERRORS -gt 0 ]; then
+    echo ""
+    echo "Commit blocked to prevent PII/company data leakage."
+    echo "Fix the issues above, or use --no-verify to bypass (NOT recommended)."
+    exit 1
+fi
+
+exit 0

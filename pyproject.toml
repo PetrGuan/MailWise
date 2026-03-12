@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "mailwise"
+version = "0.1.0"
+description = "Turn email threads into a searchable knowledge base. Parse EML files, index with embeddings, and use RAG to learn how your best engineers analyze issues."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+authors = [
+    { name = "Petr" },
+]
+keywords = ["email", "eml", "rag", "embeddings", "issue-tracking", "knowledge-base"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Communications :: Email",
+    "Topic :: Text Processing :: Indexing",
+]
+dependencies = [
+    "sentence-transformers>=2.2.0",
+    "numpy>=1.24.0",
+    "click>=8.0",
+    "pyyaml>=6.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/peterxcli/MailWise"
+Issues = "https://github.com/peterxcli/MailWise/issues"
+
+[project.scripts]
+mailwise = "email_issue_indexer.cli:cli"
+
+[tool.setuptools.packages.find]
+where = ["src"]

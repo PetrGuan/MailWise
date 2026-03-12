@@ -1,0 +1,26 @@
+# User data - NEVER commit
+data/
+markdown/
+*.eml
+
+# User config (contains employee emails, internal paths)
+config.yaml
+config.local.yaml
+
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp

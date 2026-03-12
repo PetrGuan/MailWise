@@ -1,0 +1,33 @@
+# Email Issue Indexer - Configuration
+# Copy this file to config.yaml and edit with your settings:
+#   cp config.example.yaml config.yaml
+
+# Directory containing your .eml files
+eml_directory: /path/to/your/eml/files
+
+# SQLite database location
+database: data/index.db
+
+# Directory for generated markdown files
+markdown_directory: markdown
+
+# Embedding model (runs locally, no API needed)
+embedding_model: all-MiniLM-L6-v2
+
+# Score multiplier for expert engineer replies in search results
+expert_boost: 1.5
+
+# Optional: customize the system prompt for the RAG analysis.
+# This lets you tailor Claude's analysis to your team's domain.
+# system_prompt: |
+#   You are an expert issue analyst for the [Your Team] team.
+#   You have deep knowledge of [your domain]...
+
+# Your rock star engineers - replies from these addresses get
+# [Expert] tags and boosted search ranking
+experts: []
+# experts:
+#   - email: engineer@company.com
+#     name: Jane Doe
+#   - email: senior.dev@company.com
+#     name: John Smith

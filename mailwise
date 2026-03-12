@@ -1,0 +1,4 @@
+#!/bin/bash
+# Convenience wrapper to run email-issue-indexer CLI
+DIR="$(cd "$(dirname "$0")" && pwd)"
+PYTHONPATH="$DIR/src" python3 -m email_issue_indexer.cli "$@"
