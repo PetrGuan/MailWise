@@ -6,6 +6,7 @@ Only fetches full metadata for the top-k results.
 """
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 import numpy as np
@@ -59,21 +60,28 @@ def find_similar(
         query_vec, corpus, expert_mask, expert_boost, top_k * 3  # over-fetch for dedup
     )
 
-    # Deduplicate by email_id, then fetch metadata only for winners
+    # Deduplicate by normalized subject (same thread = same issue)
     search_results = []
-    seen_emails = set()
+    seen_subjects = set()
     for idx, score in results:
         eid = email_ids[idx]
-        if eid in seen_emails:
-            continue
-        seen_emails.add(eid)
 
         msg = store.get_message_metadata(msg_ids[idx])
         email_record = store.get_email(eid)
-        if msg and email_record:
-            search_results.append(SearchResult(
-                message=msg, email=email_record, score=score
-            ))
+        if not msg or not email_record:
+            continue
+
+        # Normalize subject: strip Re:/Fwd:, lowercase, collapse whitespace
+        norm = re.sub(r'^(?:Re|Fwd|Fw)\s*:\s*', '', email_record.subject,
+                      flags=re.IGNORECASE).strip().lower()
+        norm = re.sub(r'\s+', ' ', norm)
+        if norm in seen_subjects:
+            continue
+        seen_subjects.add(norm)
+
+        search_results.append(SearchResult(
+            message=msg, email=email_record, score=score
+        ))
 
         if len(search_results) >= top_k:
             break

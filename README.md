@@ -1,5 +1,7 @@
 # MailWise
 
+[English](README.md) | [中文](README.zh-CN.md)
+
 Turn email threads into a searchable knowledge base. Parse EML files, index with embeddings, and use RAG to learn how your best engineers analyze issues.
 
 ## What it does
