@@ -3,7 +3,7 @@ name: mailwise
 description: Search and analyze email issue threads from a local knowledge base. Use when the user asks about past bugs, incidents, or wants to find how experienced engineers solved similar issues. Triggers on questions like "have we seen this before", "similar issues", "how did we fix", "root cause analysis", "past incidents".
 homepage: https://github.com/PetrGuan/MailWise
 user-invocable: true
-metadata: { "openclaw": { "emoji": "📧", "requires": { "bins": ["mailwise", "claude"] }, "install": [{ "id": "pip", "kind": "uv", "package": "mailwise @ git+https://github.com/PetrGuan/MailWise.git", "bins": ["mailwise"], "label": "Install MailWise from GitHub" }] } }
+metadata: { "openclaw": { "emoji": "📧", "requires": { "bins": ["mailwise", "claude"], "env": { "ANTHROPIC_API_KEY": { "description": "Anthropic API key (only needed for the 'analyze' command; alternative: authenticate via 'claude' CLI login)", "required": false } } }, "install": [{ "id": "pip", "kind": "uv", "package": "mailwise @ git+https://github.com/PetrGuan/MailWise.git", "bins": ["mailwise"], "label": "Install MailWise from GitHub" }] } }
 ---
 
 # MailWise — Email Issue Knowledge Base
@@ -119,9 +119,20 @@ Before first use, the user needs to:
 4. Put `.eml` files in the configured directory
 5. Run `mailwise index` to build the initial index
 
-## Important notes
+## Privacy & data handling
 
-- All indexing and search runs locally (no data sent to external APIs)
-- The `analyze` command requires Claude Code to be installed and authenticated
+- **Local-only commands** (`index`, `search`, `show`, `stats`, `experts`): All processing runs entirely on your machine. Embeddings are generated locally via sentence-transformers. No data is sent to external services.
+- **External LLM command** (`analyze`): This command sends email excerpts (search results matching your query) to the Anthropic API via the Claude Code CLI (`claude --print`). Treat any content passed to `analyze` as potentially transmitted to Anthropic's servers. **Do not use `analyze` on sensitive emails unless your organization's data policy permits it.** You can use all other commands without any external API calls.
+
+## Authentication requirements
+
+The `analyze` command requires [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) to be installed and authenticated:
+
+- **Binary**: `claude` (Claude Code CLI)
+- **Auth**: Run `claude` once to authenticate via Anthropic Console, or set the `ANTHROPIC_API_KEY` environment variable
+- **No auth needed** for local-only commands (`index`, `search`, `show`, `stats`, `experts`)
+
+## Other notes
+
 - The index is stored in a local SQLite database
 - Markdown versions of all parsed threads are written to the `markdown/` directory
