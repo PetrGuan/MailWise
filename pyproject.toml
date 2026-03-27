@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Turn email threads into a searchable knowledge base. Parse EML files, index with embeddings, and use RAG to learn how your best engineers analyze issues."
 readme = "README.md"
 license = "MIT"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 authors = [
     { name = "Petr" },
 ]
