@@ -1,4 +1,6 @@
 """CLI interface for MailWise."""
+from __future__ import annotations
+
 from pathlib import Path
 
 import click
@@ -71,6 +73,135 @@ def cli(ctx, config_path):
         click.echo("Warning: No config.yaml found. Copy config.example.yaml "
                     "to config.yaml and edit it.", err=True)
         click.echo("  cp config.example.yaml config.yaml\n", err=True)
+
+
+@cli.command()
+@click.pass_context
+def init(ctx):
+    """Set up MailWise interactively.
+
+    \b
+    Creates a config.yaml file, sets up directories, and optionally
+    runs a test index to verify everything works.
+
+    \b
+    Example:
+      mailwise init
+    """
+    config_path = Path(ctx.obj["config_path"]).resolve()
+    base_dir = config_path.parent
+
+    # Step 1: Check existing config
+    if config_path.exists():
+        if not click.confirm("config.yaml already exists. Overwrite?", default=False):
+            click.echo("Aborted.")
+            return
+
+    click.echo(BANNER.strip())
+    click.echo("\nLet's set up MailWise!\n")
+
+    # Step 2: EML directory
+    eml_count = 0
+    while True:
+        eml_dir = click.prompt("Path to your EML files directory",
+                               type=str, default="emails")
+        eml_path = Path(eml_dir).expanduser().resolve()
+        if not eml_path.exists():
+            click.echo(f"  Directory '{eml_path}' does not exist.")
+            if click.confirm("  Create it?", default=True):
+                eml_path.mkdir(parents=True, exist_ok=True)
+                click.echo(f"  Created {eml_path}")
+                click.echo("  Add your .eml files there and run 'mailwise index' later.\n")
+                break
+            continue
+        eml_count = len(list(eml_path.rglob("*.eml")))
+        if eml_count == 0:
+            click.echo(f"  No .eml files found in '{eml_path}'.")
+            if click.confirm("  Use this directory anyway?", default=True):
+                break
+            continue
+        click.echo(f"  Found {eml_count} .eml files.\n")
+        break
+
+    # Step 3: Experts (optional)
+    experts = []
+    click.echo("Expert engineers get boosted search rankings and [Expert] tags.")
+    if click.confirm("Add expert engineers now?", default=False):
+        while True:
+            email_addr = click.prompt("  Expert email", type=str)
+            if "@" not in email_addr:
+                click.echo("  That doesn't look like an email address. Try again.")
+                continue
+            name = click.prompt("  Display name", type=str, default="")
+            experts.append({"email": email_addr, "name": name})
+            click.echo(f"  Added: {name or email_addr} <{email_addr}>")
+            if not click.confirm("  Add another expert?", default=False):
+                break
+    click.echo("")
+
+    # Step 4: Create directories relative to config location
+    (base_dir / "data").mkdir(exist_ok=True)
+    (base_dir / "markdown").mkdir(exist_ok=True)
+
+    # Step 5: Write config
+    config_data = {
+        "eml_directory": str(eml_path),
+        "database": "data/index.db",
+        "markdown_directory": "markdown",
+        "embedding_model": "all-MiniLM-L6-v2",
+        "expert_boost": 1.5,
+        "experts": experts if experts else [],
+    }
+    with open(config_path, "w") as f:
+        yaml.dump(config_data, f, default_flow_style=False, sort_keys=False)
+    click.echo(f"Config written to {config_path}")
+
+    # Step 6: Offer test index
+    if eml_count > 0 and click.confirm(
+        f"\nRun a quick test index ({min(5, eml_count)} files) to verify setup?",
+        default=True,
+    ):
+        store = get_store(config_data)
+        engine = get_engine(config_data)
+        try:
+            # Sync experts
+            for expert in experts:
+                store.add_expert(expert["email"], expert.get("name", ""))
+
+            # Index with small batch, limited files via symlinks in temp dir
+            import tempfile
+            test_files = sorted(eml_path.rglob("*.eml"))[:5]
+            md_dir = base_dir / "markdown"
+            with tempfile.TemporaryDirectory() as tmpdir:
+                tmp = Path(tmpdir)
+                for i, f in enumerate(test_files):
+                    # Use index prefix to avoid name collisions from subdirs
+                    (tmp / f"{i}_{f.name}").symlink_to(f)
+                stats = index_directory(
+                    tmp, store, engine,
+                    md_dir=md_dir, batch_size=5, max_workers=1,
+                )
+            click.echo(f"\nTest index complete: {stats['processed']} emails indexed, "
+                        f"{stats['errors']} errors.")
+            if stats['errors'] == 0:
+                click.echo("Everything looks good!")
+        except Exception as e:
+            click.echo(f"\nTest index failed: {e}", err=True)
+            click.echo("You can debug and run 'mailwise index' manually.", err=True)
+        finally:
+            store.close()
+
+    # Step 7: Summary
+    click.echo("\nYou're all set! Next steps:")
+    if eml_count == 0:
+        click.echo(f"  1. Add .eml files to {eml_path}")
+        click.echo("  2. Run: mailwise index")
+        click.echo("  3. Run: mailwise search \"your issue\"")
+        click.echo("  4. Run: mailwise analyze \"full bug report\"")
+    else:
+        click.echo(f"  1. Run: mailwise index          (index all {eml_count} emails)")
+        click.echo("  2. Run: mailwise search \"your issue\"")
+        click.echo("  3. Run: mailwise analyze \"full bug report\"")
 
 
 @cli.command()
