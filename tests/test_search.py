@@ -9,8 +9,9 @@ from email_issue_indexer.store import StoredEmail, StoredMessage
 from email_issue_indexer.markdown import to_markdown
 
 
-def _index_synthetic_emails(store, engine):
+def _index_synthetic_emails(store, engine, experts=None):
     """Index 3 synthetic emails into the store with real embeddings."""
+    expert_set = experts or set()
     emails_data = [
         ("db-timeout.eml", "Database timeout on queries",
          "alice@example.com", "Alice",
@@ -45,7 +46,7 @@ def _index_synthetic_emails(store, engine):
 
         text = f"{subject}\n\n{body}"
         embedding = engine.embed(text[:2000])
-        store.upsert_messages_batch(email_id, messages, [embedding], set())
+        store.upsert_messages_batch(email_id, messages, [embedding], expert_set)
 
     store.commit()
 
@@ -58,26 +59,59 @@ class TestFindSimilar:
             tmp_store, embedding_engine, top_k=3,
         )
         assert len(results) > 0
-        # First result should be the database-related email
-        assert "timeout" in results[0].email.subject.lower() or \
-               "database" in results[0].email.subject.lower()
+        assert results[0].email.subject == "Database timeout on queries"
 
     def test_expert_only_filter(self, tmp_store, embedding_engine):
-        _index_synthetic_emails(tmp_store, embedding_engine)
-        # Mark alice as expert
-        tmp_store.add_expert("alice@example.com", "Alice")
-        # Update is_expert for alice's messages
-        tmp_store.conn.execute(
-            "UPDATE thread_messages SET is_expert = 1 WHERE from_addr = 'alice@example.com'"
+        _index_synthetic_emails(
+            tmp_store, embedding_engine,
+            experts={"alice@example.com"},
         )
-        tmp_store.commit()
+        tmp_store.add_expert("alice@example.com", "Alice")
 
         results = find_similar(
             "any query", tmp_store, embedding_engine,
             top_k=10, expert_only=True,
         )
+        assert len(results) > 0
         for r in results:
             assert r.message.is_expert
+
+    def test_subject_deduplication(self, tmp_store, embedding_engine):
+        """Emails with same normalized subject should be deduplicated."""
+        _index_synthetic_emails(tmp_store, embedding_engine)
+        # Add a second email with RE: prefix of the same subject
+        messages = [
+            ThreadMessage(
+                from_name="Dave", from_addr="dave@example.com",
+                sent_date="2025-03-11", to_addrs="support@example.com",
+                subject="RE: Database timeout on queries",
+                body="Following up on the database timeout issue.", position=0,
+            )
+        ]
+        parsed = ParsedEmail(
+            file_path="db-timeout-reply.eml", file_hash="hash_reply",
+            file_mtime=1001.0, file_size=400,
+            subject="RE: Database timeout on queries", date="2025-03-11",
+            from_name="Dave", from_addr="dave@example.com",
+            to_addrs=["support@example.com"],
+            message_id="<reply@example.com>",
+            in_reply_to=None, messages=messages,
+        )
+        md = to_markdown(parsed)
+        email_id = tmp_store.upsert_email(parsed, md)
+        text = f"{parsed.subject}\n\n{messages[0].body}"
+        embedding = embedding_engine.embed(text[:2000])
+        tmp_store.upsert_messages_batch(email_id, messages, [embedding], set())
+        tmp_store.commit()
+
+        results = find_similar(
+            "database timeout queries",
+            tmp_store, embedding_engine, top_k=10,
+        )
+        # Both emails match, but dedup should collapse to one result
+        db_subjects = [r.email.subject for r in results
+                       if "database timeout" in r.email.subject.lower()]
+        assert len(db_subjects) == 1
 
     def test_empty_store_returns_empty(self, tmp_store, embedding_engine):
         results = find_similar("test", tmp_store, embedding_engine)

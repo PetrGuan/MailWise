@@ -71,8 +71,7 @@ class TestIndexThenSearch:
             store, embedding_engine, top_k=2,
         )
         assert len(results) > 0
-        assert "timeout" in results[0].email.subject.lower() or \
-               "database" in results[0].email.subject.lower()
+        assert results[0].email.subject == "Database timeout on reporting queries"
 
         # Re-index should skip unchanged files
         result2 = index_directory(
