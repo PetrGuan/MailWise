@@ -18,8 +18,9 @@ class TestInit:
         eml_dir.mkdir()
 
         runner = CliRunner()
+        # Input: eml dir, yes use anyway (no .eml files), no experts
         result = runner.invoke(cli, ["--config", "config.yaml", "init"],
-                               input=f"{eml_dir}\nn\n")
+                               input=f"{eml_dir}\ny\nn\n")
         assert result.exit_code == 0
         assert "Config written" in result.output
 
@@ -76,8 +77,9 @@ class TestInit:
         eml_dir.mkdir()
 
         runner = CliRunner()
+        # Input: yes overwrite, eml dir, yes use anyway (no .eml files), no experts
         result = runner.invoke(cli, ["--config", "config.yaml", "init"],
-                               input=f"y\n{eml_dir}\nn\n")
+                               input=f"y\n{eml_dir}\ny\nn\n")
         assert result.exit_code == 0
         assert "Config written" in result.output
         config = yaml.safe_load(config_path.read_text())
