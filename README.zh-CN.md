@@ -1,5 +1,10 @@
 # MailWise
 
+[![CI](https://github.com/PetrGuan/MailWise/actions/workflows/ci.yml/badge.svg)](https://github.com/PetrGuan/MailWise/actions/workflows/ci.yml)
+[![PyPI version](https://badge.fury.io/py/mailwise.svg)](https://pypi.org/project/mailwise/)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://python.org)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
 [English](README.md) | [中文](README.zh-CN.md)
 
 将邮件线程转化为可搜索的知识库。解析 EML 文件，使用向量嵌入建立索引，通过 RAG 学习团队资深工程师分析问题的方式。

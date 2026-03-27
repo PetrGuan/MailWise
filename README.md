@@ -1,5 +1,10 @@
 # MailWise
 
+[![CI](https://github.com/PetrGuan/MailWise/actions/workflows/ci.yml/badge.svg)](https://github.com/PetrGuan/MailWise/actions/workflows/ci.yml)
+[![PyPI version](https://badge.fury.io/py/mailwise.svg)](https://pypi.org/project/mailwise/)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://python.org)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
 [English](README.md) | [中文](README.zh-CN.md)
 
 Turn email threads into a searchable knowledge base. Parse EML files, index with embeddings, and use RAG to learn how your best engineers analyze issues.
