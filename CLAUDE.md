@@ -41,6 +41,7 @@ scripts/pre-commit   # PII-scanning git hook
 ## Key commands
 
 ```bash
+./mailwise init           # Interactive setup wizard
 ./mailwise index          # Index EML files (incremental, parallel)
 ./mailwise search "..."   # Semantic search
 ./mailwise analyze "..."  # RAG analysis via Claude
@@ -53,9 +54,10 @@ scripts/pre-commit   # PII-scanning git hook
 ## Development
 
 ```bash
-pip install -e .
-cp config.example.yaml config.yaml  # Then edit with your settings
+pip install -e ".[dev]"
+mailwise init                        # Or: cp config.example.yaml config.yaml
 ./scripts/install-hooks.sh           # Install PII-scanning pre-commit hook
+pytest                               # Run test suite (59 tests)
 ```
 
 ## Architecture & performance notes

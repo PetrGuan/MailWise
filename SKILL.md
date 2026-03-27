@@ -84,6 +84,14 @@ mailwise index
 
 This is incremental — only processes new or changed files. Safe to run repeatedly.
 
+### Interactive setup
+
+Set up MailWise interactively — creates config, validates directories, optionally runs a test index:
+
+```bash
+mailwise init
+```
+
 ### Manage expert engineers
 
 ```bash
@@ -108,16 +116,19 @@ Before first use, the user needs to:
 
 1. Install MailWise:
    ```bash
+   pip install mailwise
+   ```
+   Or from GitHub:
+   ```bash
    pip install git+https://github.com/PetrGuan/MailWise.git
    ```
-2. Clone the repo for config files:
+2. Run the interactive setup:
    ```bash
-   git clone https://github.com/PetrGuan/MailWise.git && cd MailWise
-   cp config.example.yaml config.yaml
+   mailwise init
    ```
-3. Edit `config.yaml`: set `eml_directory` and add expert engineers
-4. Put `.eml` files in the configured directory
-5. Run `mailwise index` to build the initial index
+   This creates `config.yaml`, sets up directories, and optionally runs a test index.
+3. Put `.eml` files in the configured directory
+4. Run `mailwise index` to build the initial index
 
 ## Privacy & data handling
 

@@ -30,6 +30,14 @@ If your team handles bugs/incidents via email, years of tribal knowledge is buri
 
 ### Install
 
+From PyPI:
+
+```bash
+pip install mailwise
+```
+
+Or from source:
+
 ```bash
 git clone https://github.com/PetrGuan/MailWise.git
 cd MailWise
@@ -37,6 +45,16 @@ pip install -e .
 ```
 
 ### Configure
+
+The easiest way to get started:
+
+```bash
+mailwise init
+```
+
+This will walk you through setting up your EML directory, adding expert engineers, and verifying the setup.
+
+Or configure manually:
 
 ```bash
 cp config.example.yaml config.yaml
