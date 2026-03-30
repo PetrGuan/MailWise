@@ -3,64 +3,86 @@ name: mailwise
 description: Search and analyze email issue threads from a local knowledge base. Use when the user asks about past bugs, incidents, or wants to find how experienced engineers solved similar issues. Triggers on questions like "have we seen this before", "similar issues", "how did we fix", "root cause analysis", "past incidents".
 homepage: https://github.com/PetrGuan/MailWise
 user-invocable: true
-metadata: { "openclaw": { "emoji": "📧", "requires": { "bins": ["mailwise", "claude"], "env": { "ANTHROPIC_API_KEY": { "description": "Anthropic API key (only needed for the 'analyze' command; alternative: authenticate via 'claude' CLI login)", "required": false } } }, "install": [{ "id": "pip", "kind": "uv", "package": "mailwise @ git+https://github.com/PetrGuan/MailWise.git", "bins": ["mailwise"], "label": "Install MailWise from GitHub" }] } }
+metadata: { "openclaw": { "emoji": "📧", "requires": { "bins": ["mailwise", "claude"], "env": { "ANTHROPIC_API_KEY": { "description": "Anthropic API key (only needed for the 'analyze' command; alternative: authenticate via 'claude' CLI login)", "required": false } } }, "install": [{ "id": "pip", "kind": "uv", "package": "mailwise", "bins": ["mailwise"], "label": "Install MailWise from PyPI" }] } }
 ---
 
-# MailWise — Email Issue Knowledge Base
+# MailWise — Your Team's Email Memory
 
-Search and analyze your team's email issue threads. MailWise indexes EML files, tags expert engineers' replies, and uses RAG to help you learn from how experienced engineers investigated and resolved past issues.
+**Stop re-investigating issues your team already solved.** MailWise turns your email threads into a searchable knowledge base — index thousands of EML files locally, tag expert engineers, and use RAG to instantly surface how similar issues were debugged and resolved in the past.
 
-## When to use this skill
+> **"Have we seen this before?"** → MailWise searches 25,000+ emails in under a second and shows you exactly what your best engineers said about it.
 
-- User asks about **similar past issues** or bugs
-- User wants to know **how an issue was resolved before**
-- User pastes a **bug report** and wants analysis based on team history
-- User asks about **root cause patterns** or debugging approaches
-- User wants to find what **expert engineers** said about a topic
+## What you get
+
+**Semantic search** — not keyword matching, but meaning-based retrieval across your entire email archive:
+
+```
+$ mailwise search "calendar sync fails after folder migration" --show-body
+
+  #1 [0.89] ★Expert  RE: Outlook calendar not syncing after mailbox move
+     From: senior.engineer@example.com (2024-11-15)
+     "The root cause is a stale folder-id cache. Clear HxCalendarSync
+      and restart the sync service..."
+
+  #2 [0.84]          RE: Sync failure post-migration — Mac clients
+     From: support.lead@example.com (2024-10-22)
+     "We've seen this pattern before. Check if the migration tool
+      preserved the folder GUIDs..."
+
+  #3 [0.81] ★Expert  RE: Calendar items disappearing after move
+     From: senior.engineer@example.com (2024-09-08)
+     "This is the same class of bug as CASE-4521. The fix is..."
+```
+
+**RAG-powered analysis** — Claude reads the most relevant past threads and synthesizes debugging guidance:
+
+```
+$ mailwise analyze "User reports calendar events vanish after moving to a new folder"
+
+  Based on 5 similar past issues, here's what your team has found:
+  ● Root cause pattern: stale folder-id cache after migration (3 of 5 cases)
+  ● Recommended first step: check HxCalendarSync logs for GUID mismatch
+  ● Expert consensus: clearing the sync cache resolves ~80% of these cases
+  ● Edge case: if GUIDs were not preserved during migration, a full re-sync is needed
+```
+
+## Get started in 3 steps
+
+```bash
+pip install mailwise        # 1. Install from PyPI
+mailwise init               # 2. Interactive setup wizard — creates config, sets directories
+mailwise index              # 3. Index your EML files (incremental, safe to re-run)
+```
+
+That's it. Now search with `mailwise search "..."` or get AI analysis with `mailwise analyze "..."`.
 
 ## Commands
 
 ### Search for similar issues
 
-Find past issues matching a description. Returns ranked results with expert tags.
-
 ```bash
 mailwise search "describe the issue here" --show-body
 ```
 
-Options:
 - `--show-body` — show a preview of each matching message
 - `--expert-only` — only show replies from expert engineers
 - `-k N` — number of results (default: 10)
 
-Example:
-```bash
-mailwise search "email sync failure after folder migration" --show-body
-mailwise search "calendar not updating on Mac" --expert-only -k 5
-```
-
 ### Deep analysis with RAG
-
-Retrieve similar past issues and ask Claude to synthesize expert insights, root cause patterns, and debugging approaches.
 
 ```bash
 mailwise analyze "paste full bug report or issue description here"
 ```
 
-Options:
-- `-k N` — number of similar issues to feed to Claude (default: 5, increase for broader analysis)
+- `-k N` — number of similar issues to feed to Claude (default: 5)
 
-**Tip:** For best results, paste the FULL bug report content, not just a title. More context (error codes, logs, environment details) produces better matches.
+**Tip:** Paste the FULL bug report — error codes, logs, environment details produce much better matches.
 
-Example:
 ```bash
-mailwise analyze "User on Mac Outlook moves emails from Inbox to local folder. Emails disappear but reappear after 30 minutes. No DeleteMessage in HxLogs."
 mailwise analyze "$(cat bug_report.txt)" -k 10
 ```
 
 ### View a full email thread
-
-After finding an issue via search, view the complete parsed thread with all replies and expert tags.
 
 ```bash
 mailwise show <EMAIL_ID>
@@ -72,26 +94,6 @@ mailwise show <EMAIL_ID>
 mailwise stats
 ```
 
-Shows: total indexed emails, thread messages, expert messages, expert coverage percentage.
-
-### Index new emails
-
-When the user adds new EML files or wants to refresh the index:
-
-```bash
-mailwise index
-```
-
-This is incremental — only processes new or changed files. Safe to run repeatedly.
-
-### Interactive setup
-
-Set up MailWise interactively — creates config, validates directories, optionally runs a test index:
-
-```bash
-mailwise init
-```
-
 ### Manage expert engineers
 
 ```bash
@@ -100,7 +102,7 @@ mailwise experts add engineer@company.com --name "Jane Doe"
 mailwise experts remove engineer@company.com
 ```
 
-Expert engineers' replies get `[Expert]` tags and boosted scores in search results.
+Expert engineers' replies get `★Expert` tags and boosted scores in search results.
 
 ## Typical workflow
 
@@ -110,40 +112,12 @@ Expert engineers' replies get `[Expert]` tags and boosted scores in search resul
 4. Use `mailwise show <ID>` to read full threads of interest
 5. Summarize findings: root cause patterns, debugging steps, and next actions
 
-## Setup requirements
-
-Before first use, the user needs to:
-
-1. Install MailWise:
-   ```bash
-   pip install mailwise
-   ```
-   Or from GitHub:
-   ```bash
-   pip install git+https://github.com/PetrGuan/MailWise.git
-   ```
-2. Run the interactive setup:
-   ```bash
-   mailwise init
-   ```
-   This creates `config.yaml`, sets up directories, and optionally runs a test index.
-3. Put `.eml` files in the configured directory
-4. Run `mailwise index` to build the initial index
-
 ## Privacy & data handling
 
-- **Local-only commands** (`index`, `search`, `show`, `stats`, `experts`): All processing runs entirely on your machine. Embeddings are generated locally via sentence-transformers. No data is sent to external services.
-- **External LLM command** (`analyze`): This command sends email excerpts (search results matching your query) to the Anthropic API via the Claude Code CLI (`claude --print`). Treat any content passed to `analyze` as potentially transmitted to Anthropic's servers. **Do not use `analyze` on sensitive emails unless your organization's data policy permits it.** You can use all other commands without any external API calls.
+- **Local-only commands** (`index`, `search`, `show`, `stats`, `experts`): Everything runs on your machine. Embeddings generated locally via sentence-transformers. No data sent anywhere.
+- **External LLM command** (`analyze`): Sends email excerpts to the Anthropic API via Claude Code CLI. Do not use on sensitive emails unless your org's data policy permits it.
 
-## Authentication requirements
+## Authentication
 
-The `analyze` command requires [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) to be installed and authenticated:
-
-- **Binary**: `claude` (Claude Code CLI)
-- **Auth**: Run `claude` once to authenticate via Anthropic Console, or set the `ANTHROPIC_API_KEY` environment variable
-- **No auth needed** for local-only commands (`index`, `search`, `show`, `stats`, `experts`)
-
-## Other notes
-
-- The index is stored in a local SQLite database
-- Markdown versions of all parsed threads are written to the `markdown/` directory
+- The `analyze` command requires [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) — run `claude` once to authenticate, or set `ANTHROPIC_API_KEY`
+- No auth needed for local commands (`index`, `search`, `show`, `stats`, `experts`)
